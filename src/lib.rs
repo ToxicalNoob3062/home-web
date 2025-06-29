@@ -1,7 +1,7 @@
 mod api;
-mod responder;
-mod register;
-mod querier;
+mod cache;
 mod listener;
-mod error;
+mod querier;
+mod register;
+mod responder;
 mod types;
