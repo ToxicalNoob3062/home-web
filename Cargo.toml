@@ -4,7 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+async-channel = "2.3.1"
 bazuka = "0.1.2"
 dashmap = "6.1.0"
+num_cpus = "1.17.0"
 simple-dns = "0.10.1"
+socket2 = "0.5.10"
 tokio = { version = "1.45.1", features = ["full"] }

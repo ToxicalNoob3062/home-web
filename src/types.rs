@@ -1,4 +1,5 @@
-use simple_dns::Name;
+use simple_dns::{Name, QTYPE, TYPE, rdata::*};
+use std::time::SystemTime;
 use std::{
     collections::HashMap,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
@@ -132,6 +133,19 @@ pub enum QueryType {
     AAAA,
 }
 
+// implement into() for QueryType to convert to simple_dns::QType
+impl From<QueryType> for QTYPE {
+    fn from(qtype: QueryType) -> Self {
+        match qtype {
+            QueryType::PTR => QTYPE::TYPE(TYPE::PTR),
+            QueryType::SRV => QTYPE::TYPE(TYPE::SRV),
+            QueryType::TXT => QTYPE::TYPE(TYPE::TXT),
+            QueryType::A => QTYPE::TYPE(TYPE::A),
+            QueryType::AAAA => QTYPE::TYPE(TYPE::AAAA),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Query {
     pub qname: Name<'static>,
@@ -139,13 +153,41 @@ pub struct Query {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum Response {
+pub enum ResponseInner {
     PTR(String),
     SRV { port: u16, target: String },
     TXT { strings: Vec<String> },
     A { address: Ipv4Addr },
     AAAA { address: Ipv6Addr },
 }
+
+// response inner into simple_dns::RData
+impl<'a> From<ResponseInner> for RData<'a> {
+    fn from(response: ResponseInner) -> Self {
+        match response {
+            ResponseInner::PTR(ptr) => RData::PTR(PTR(Name::new_unchecked(&ptr).into_owned())),
+            ResponseInner::SRV { port, target } => RData::SRV(SRV { priority: 0, weight: 0, port, target: Name::new_unchecked(&target).into_owned() }),
+            ResponseInner::TXT { strings } =>{
+                let text = TXT::new().into_owned();
+                for string in strings {
+                    let key = string.split('=').next().unwrap_or("").to_string();
+                    let value = string.split('=').nth(1).map(|v| v.to_string());
+                    text.attributes().insert(key, value);
+                }
+                RData::TXT(text)
+            },
+            ResponseInner::A { address } => RData::A(A { address: address.into() }),
+            ResponseInner::AAAA { address } => RData::AAAA(AAAA { address: address.into() }),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Response {
+    pub inner: ResponseInner,
+    pub ends_at: SystemTime,
+}
+
 
 #[derive(Debug)]
 pub struct ChannelMessage {

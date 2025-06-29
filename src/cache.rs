@@ -1,8 +1,10 @@
-use std::sync::Arc;
-
 use super::types::*;
 use bazuka::*;
+use dashmap::DashMap;
+use std::sync::Arc;
+use tokio::sync::mpsc;
 
+#[derive(Debug)]
 pub struct Cache {
     cache: SkmvCache<Query, Response>,
 }
@@ -22,3 +24,5 @@ impl Cache {
         self.cache.get(query).await
     }
 }
+
+pub type Tracker = Arc<DashMap<Query, mpsc::Sender<Option<(Response, u32)>>>>;
