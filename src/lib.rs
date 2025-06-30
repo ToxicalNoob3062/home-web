@@ -1,3 +1,4 @@
+use rand::{Rng, distr, rng};
 use simple_dns::{
     Packet, ResourceRecord,
     rdata::{RData, TXT},
@@ -38,6 +39,38 @@ global!(
     SocketAddr,
     "[ff02::fb]:5353".parse().unwrap()
 );
+
+global!(HOSTNAME, mdns_hostname, String, {
+    let hostname = gethostname::gethostname().to_string_lossy().into_owned();
+    let mut sanitized = String::with_capacity(hostname.len());
+    let mut prev_char_was_hyphen = false;
+    for c in hostname.chars() {
+        let c = c.to_ascii_lowercase();
+        let c = if c.is_ascii_alphanumeric() {
+            c
+        } else {
+            if prev_char_was_hyphen {
+                continue;
+            }
+            '-'
+        };
+        sanitized.push(c);
+        prev_char_was_hyphen = c == '-';
+    }
+    sanitized = sanitized.trim_matches('-').to_string();
+    if sanitized.is_empty() {
+        sanitized = random_alphanumeric_string(8);
+    }
+    format!("{}.local", sanitized)
+});
+
+pub fn random_alphanumeric_string(len: usize) -> String {
+    rng()
+        .sample_iter(&distr::Alphanumeric)
+        .take(len)
+        .map(char::from)
+        .collect()
+}
 
 pub fn prepare_triplet_from_record<'a>(
     record: &ResourceRecord<'a>,

@@ -45,6 +45,17 @@ impl Instance {
         &self.metadata
     }
 
+    pub fn break_instance_str(instance: &str) -> Result<String, String> {
+        let parts: Vec<&str> = instance.split('.').collect();
+        if parts.len() < 4 {
+            return Err(format!(
+                "Instance name must be in the format `name.service_type.protocol.local`."
+            ));
+        }
+        let service_type = format!("{}.{}.{}", parts[1], parts[2], parts[3]);
+        Ok(service_type)
+    }
+
     //validate the name format and port number
     fn validate(name: &str, port: u16) -> Result<(), String> {
         if name.is_empty() || !name.contains('.') {
