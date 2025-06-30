@@ -182,3 +182,18 @@ fn reduce_packet_size(packet: &mut Packet, max_size: usize) -> bool {
     }
     true
 }
+
+fn serialize_packet<'a>(packet: &'a mut Packet<'a>) -> Option<Vec<u8>> {
+    // If you have to remove all answers and additional records for reduction, return None
+    if !reduce_packet_size(packet, 1472) {
+        return None;
+    };
+
+    // Serialize the packet to bytes
+    let mut response_bytes = Vec::new();
+    if packet.write_to(&mut response_bytes).is_ok() {
+        Some(response_bytes)
+    } else {
+        None
+    }
+}

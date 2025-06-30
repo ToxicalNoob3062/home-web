@@ -1,9 +1,11 @@
 use simple_dns::{
-    rdata::{RData, A, AAAA, PTR, SRV}, Name, Packet, Question, ResourceRecord, CLASS, QTYPE, TYPE
+    CLASS, Name, Packet, QTYPE, Question, ResourceRecord, TYPE,
+    rdata::{A, AAAA, PTR, RData, SRV},
 };
 
 use super::register::Registry;
 
+#[derive(Debug)]
 pub struct Responder {
     registry: Registry,
 }
@@ -65,7 +67,8 @@ impl Responder {
         packet: &mut Packet<'a>,
     ) -> Result<(), String> {
         let instance = self.registry.get_instance(&qname.to_string())?;
-        let metadata: Vec<String> = instance.metadata()
+        let metadata: Vec<String> = instance
+            .metadata()
             .iter()
             .map(|(k, v)| format!("{}={}", k, v))
             .collect();
@@ -154,7 +157,7 @@ impl Responder {
         }
     }
 
-    fn answer_queries<'a>(&self, questions: Vec<Question<'a>>) -> Packet<'a> {
+    pub fn answer_queries<'a>(&self, questions: Vec<Question<'a>>) -> Packet<'a> {
         let mut response_packet = Packet::new_reply(0);
         for question in questions {
             if let QTYPE::TYPE(qtype) = question.qtype {
@@ -179,5 +182,26 @@ impl Responder {
             }
         }
         response_packet
+    }
+
+    pub fn suppress_known_answers<'a>(
+        prepared_answers: &mut Vec<ResourceRecord<'a>>,
+        known_answers: &[ResourceRecord<'a>],
+    ) {
+        prepared_answers.retain(|r| {
+            if let Some(triplet) = super::prepare_triplet_from_record(r) {
+                !known_answers.iter().any(|ka| {
+                    if let Some(ka_triplet) = super::prepare_triplet_from_record(ka) {
+                        triplet.0 == ka_triplet.0
+                            && triplet.1 == ka_triplet.1
+                            && ka_triplet.2 >= triplet.2 / 2
+                    } else {
+                        false
+                    }
+                })
+            } else {
+                true
+            }
+        });
     }
 }

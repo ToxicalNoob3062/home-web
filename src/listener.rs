@@ -1,9 +1,10 @@
-use super::cache::{Cache, Tracker};
+use super::cache::Tracker;
+use super::responder::Responder;
 use super::types::ChannelMessage;
-use simple_dns::{CLASS, Packet, PacketFlag};
+use simple_dns::{CLASS, Packet, PacketFlag, Question};
 use socket2::{Domain, Protocol, SockAddr, Socket, Type};
 use std::{
-    net::{Ipv4Addr, Ipv6Addr, SocketAddrV4, SocketAddrV6},
+    net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
     sync::Arc,
 };
 use tokio::net::UdpSocket;
@@ -12,8 +13,8 @@ use tokio::net::UdpSocket;
 pub struct Listener {
     v4_socket: Arc<Option<UdpSocket>>,
     v6_socket: Arc<Option<UdpSocket>>,
-    cache: Cache,
     tracker: Tracker,
+    responder: Responder,
 }
 
 // here we will write socket helper functions
@@ -68,7 +69,7 @@ impl Listener {
 
 impl Listener {
     // Constructor for Listener
-    pub fn new(cache: Cache, tracker: Tracker) -> Result<Arc<Self>, String> {
+    pub fn new(tracker: Tracker, responder: Responder) -> Result<Arc<Self>, String> {
         let v4_socket = Self::get_v4_msocket().ok();
         let v6_socket = Self::get_v6_msocket().ok();
         // if v4 and v6 both fail, return an error
@@ -78,8 +79,8 @@ impl Listener {
         let listener = Arc::new(Listener {
             v4_socket: Arc::new(v4_socket),
             v6_socket: Arc::new(v6_socket),
-            cache,
             tracker,
+            responder,
         });
         let listener_clone = Arc::clone(&listener);
         tokio::spawn(async move {
@@ -164,6 +165,67 @@ impl Listener {
         }
     }
 
+    async fn handle_equery<'a>(&self, ip: SocketAddr, packet: Packet<'a>) -> Result<(), String> {
+        // Separate unicast and multicast questions
+        let mut unicast_questions: Vec<Question<'a>> = vec![];
+        let mut multicast_questions: Vec<Question<'a>> = vec![];
+        for question in packet.questions {
+            if question.unicast_response {
+                unicast_questions.push(question);
+            } else {
+                multicast_questions.push(question);
+            }
+        }
+        // Prepare the response for unicast questions
+        if !unicast_questions.is_empty() {
+            let mut response_packet = self.responder.answer_queries(unicast_questions);
+            if !response_packet.answers.is_empty() && !response_packet.additional_records.is_empty()
+            {
+                // do answer suppression for answers and aditonal answers
+                self.responder
+                    .suppress_known_answers(&mut response_packet.answers, &packet.answers);
+                self.responder.suppress_known_answers(
+                    &mut response_packet.additional_records,
+                    &packet.additional_records,
+                );
+                // serialize the response packet
+                if let Some(bytes) = super::serialize_packet(&mut response_packet) {
+                    // send the response back to  the outer world
+                    self.send(ChannelMessage { ip, bytes }).await?;
+                }
+            }
+        }
+        // Prepare the response for multicast questions
+        if !multicast_questions.is_empty() {
+            let mut response_packet = self.responder.answer_queries(multicast_questions);
+            if !response_packet.answers.is_empty() && !response_packet.additional_records.is_empty()
+            {
+                // do answer suppression for answers and aditonal answers
+                self.responder
+                    .suppress_known_answers(&mut response_packet.answers, &packet.answers);
+                self.responder.suppress_known_answers(
+                    &mut response_packet.additional_records,
+                    &packet.additional_records,
+                );
+                // serialize the response packet
+                if let Some(bytes) = super::serialize_packet(&mut response_packet) {
+                    // send the response back to the outer world
+                    self.send(ChannelMessage {
+                        ip: super::multicast_addr_v4().clone(),
+                        bytes,
+                    })
+                    .await?;
+                    self.send(ChannelMessage {
+                        ip: super::multicast_addr_v6().clone(),
+                        bytes,
+                    })
+                    .await?;
+                }
+            }
+        }
+        Ok(())
+    }
+
     // Method to handle incoming service discovery messages
     fn handle_message(&self, work_taker: async_channel::Receiver<ChannelMessage>) {
         let total_cpus = num_cpus::get_physical();
@@ -179,7 +241,7 @@ impl Listener {
                         if packet.has_flags(PacketFlag::RESPONSE) {
                             Self::handle_response(packet, tracker).await;
                         } else {
-                            // Process the query packet
+                            self.handle_equery(msg.ip, packet).await;
                         };
                     }
                 }

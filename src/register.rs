@@ -1,9 +1,13 @@
-use std::{collections::HashMap, net::{IpAddr, Ipv4Addr, Ipv6Addr}};
+use std::{
+    collections::HashMap,
+    net::{IpAddr, Ipv4Addr, Ipv6Addr},
+};
 
 use dashmap::{DashMap, DashSet};
 
 use super::types::Instance;
 
+#[derive(Debug)]
 pub struct Registry {
     devices: DashMap<String, DashSet<Instance>>,
 }

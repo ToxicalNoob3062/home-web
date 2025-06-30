@@ -62,18 +62,8 @@ impl Querier {
                 packet.answers.push(record);
             }
         }
-        // packet reduction
-        if !super::reduce_packet_size(&mut packet, 1472) {
-            return None;
-        }
-
-        // Convert the packet to bytes
-        let mut response_bytes = Vec::new();
-        if packet.write_to(&mut response_bytes).is_ok() {
-            Some(response_bytes)
-        } else {
-            None
-        }
+        // Serialize the packet to bytes
+        return super::serialize_packet(&mut packet);
     }
 
     pub async fn query(
