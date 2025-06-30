@@ -13,7 +13,7 @@ pub struct Registry {
 impl Registry {
     pub fn new() -> Self {
         Registry {
-            devices: DashMap::new().into(),
+            devices: Arc::new(DashMap::new()),
         }
     }
 
@@ -28,10 +28,10 @@ impl Registry {
     pub fn get_instance(&self, instance: &str) -> Result<Instance, String> {
         let service_type = Instance::break_instance_str(instance)?;
         if let Some(instances) = self.devices.get(&service_type) {
-            if let Some(instance) =
-                instances.get(&Instance::new(instance.to_string(), 0, HashMap::new())?)
+            if let Some(ins) =
+                instances.value().get(&Instance::new(instance.to_string(), 100, HashMap::new())?)
             {
-                return Ok(instance.clone());
+                return Ok(ins.clone());
             }
         }
         Err(format!("Instance not found: {}", instance))
@@ -50,7 +50,6 @@ impl Registry {
                 }
             }
         }
-        println!("IP4 List: {:?}", ip4_list);
         ip4_list
     }
 
@@ -67,14 +66,14 @@ impl Registry {
                 }
             }
         }
-        println!("IP6 List: {:?}", ip6_list);
         ip6_list
     }
 
     pub fn register_device(&mut self, instance: Instance) {
         let service_type = instance.service_type();
-        let instances = self.devices.entry(service_type).or_default();
-        instances.insert(instance);
+        {let instances = self.devices.entry(service_type.clone()).or_default();
+        instances.value().insert(instance);}
+        println!("Registered device: {:?}", self.devices);
     }
 
     pub fn unregister_device(&mut self, instance: &Instance) {

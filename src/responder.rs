@@ -125,8 +125,8 @@ impl Responder {
     }
 
     // Prepares a response packet for PTR queries by injecting PTR, SRV, and TXT records.
-    fn prepare_ptr_response<'a>(&self, qname: &Name<'a>, response_packet: &mut Packet<'a>) {
-        _ = self.inject_ptr_records(qname, response_packet);
+    fn prepare_ptr_response<'a>(&self, qname: &Name<'a>, response_packet: &mut Packet<'a>) -> Result<(), String> {
+        self.inject_ptr_records(qname, response_packet)?;
         let ptr_records: Vec<_> = response_packet
             .answers
             .iter()
@@ -139,20 +139,22 @@ impl Responder {
             })
             .collect();
         for ptr in ptr_records {
-            _ = self.inject_srv_records(false, &ptr, response_packet);
-            _ = self.inject_txt_records(false, &ptr, response_packet);
+            self.inject_srv_records(false, &ptr, response_packet)?;
+            self.inject_txt_records(false, &ptr, response_packet)?;
         }
+        Ok(())
     }
 
     // Prepares a response packet for SRV queries by injecting SRV, A, and AAAA records.
-    fn prepare_srv_response<'a>(&self, qname: &Name<'a>, response_packet: &mut Packet<'a>) {
-        _ = self.inject_srv_records(true, qname, response_packet);
+    fn prepare_srv_response<'a>(&self, qname: &Name<'a>, response_packet: &mut Packet<'a>) -> Result<(), String> {
+        self.inject_srv_records(true, qname, response_packet)?;
         if let Some(first_srv) = response_packet.answers.first() {
             if let RData::SRV(_) = &first_srv.rdata {
                 self.inject_a_records(false, response_packet);
                 self.inject_aaaa_records(false, response_packet);
             }
         }
+        Ok(())
     }
 
     pub fn answer_queries<'a>(&self, questions: Vec<Question<'a>>) -> Packet<'a> {
@@ -161,10 +163,10 @@ impl Responder {
             if let QTYPE::TYPE(qtype) = question.qtype {
                 match qtype {
                     TYPE::PTR => {
-                        self.prepare_ptr_response(&question.qname, &mut response_packet);
+                        _= self.prepare_ptr_response(&question.qname, &mut response_packet);
                     }
                     TYPE::SRV => {
-                        self.prepare_srv_response(&question.qname, &mut response_packet);
+                        _ = self.prepare_srv_response(&question.qname, &mut response_packet);
                     }
                     TYPE::TXT => {
                         _ = self.inject_txt_records(true, &question.qname, &mut response_packet);

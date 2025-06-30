@@ -176,7 +176,6 @@ impl Listener {
         packet: Packet<'a>,
         listener: Arc<Listener>,
     ) -> Result<(), String> {
-        println!("Received query from: {} for {:?}", ip, packet.questions);
         // Separate unicast and multicast questions
         let mut unicast_questions: Vec<Question<'a>> = vec![];
         let mut multicast_questions: Vec<Question<'a>> = vec![];
@@ -190,7 +189,7 @@ impl Listener {
         // Prepare the response for unicast questions
         if !unicast_questions.is_empty() {
             let mut response_packet = listener.responder.answer_queries(unicast_questions);
-            if !response_packet.answers.is_empty() && !response_packet.additional_records.is_empty()
+            if !(response_packet.answers.is_empty() && response_packet.additional_records.is_empty())
             {
                 // do answer suppression for answers and aditonal answers
                 Responder::suppress_known_answers(&mut response_packet.answers, &packet.answers);
@@ -200,6 +199,8 @@ impl Listener {
                 );
                 // serialize the response packet
                 if let Some(bytes) = super::serialize_packet(&mut response_packet) {
+                    // print the serialized response packet
+                    println!("Serialized Response Packet: {:?}, {}", bytes,ip);
                     // send the response back to  the outer world
                     listener.send(ChannelMessage { ip, bytes }).await?;
                 }
@@ -208,7 +209,7 @@ impl Listener {
         // Prepare the response for multicast questions
         if !multicast_questions.is_empty() {
             let mut response_packet = listener.responder.answer_queries(multicast_questions);
-            if !response_packet.answers.is_empty() && !response_packet.additional_records.is_empty()
+            if !(response_packet.answers.is_empty() && response_packet.additional_records.is_empty())
             {
                 // do answer suppression for answers and aditonal answers
                 Responder::suppress_known_answers(&mut response_packet.answers, &packet.answers);

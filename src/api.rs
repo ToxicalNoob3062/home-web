@@ -102,8 +102,9 @@ impl HomeWeb {
         }));
 
         let querier = Querier::new(cache.clone(), tracker.clone(), listener.clone());
+
         Ok(HomeWeb {
-            register: Registry::new(),
+            register: registry,
             querier,
             listener,
         })
