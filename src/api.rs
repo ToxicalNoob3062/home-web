@@ -1,7 +1,6 @@
 use super::cache::Cache;
 use super::register::Registry;
 use super::types::*;
-use std::collections::HashMap;
 
 /// HomeWeb API for managing devices in a home network via service discovery.
 pub struct HomeWeb {

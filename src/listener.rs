@@ -7,7 +7,7 @@ use std::{
     net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
     sync::Arc,
 };
-use tokio::net::UdpSocket;
+use tokio::{net::UdpSocket, sync::OnceCell};
 
 #[derive(Debug)]
 pub struct Listener {
@@ -15,6 +15,7 @@ pub struct Listener {
     v6_socket: Arc<Option<UdpSocket>>,
     tracker: Tracker,
     responder: Responder,
+    poison: OnceCell<Arc<Listener>>,
 }
 
 // here we will write socket helper functions
@@ -81,7 +82,12 @@ impl Listener {
             v6_socket: Arc::new(v6_socket),
             tracker,
             responder,
+            poison: OnceCell::new(),
         });
+        // set the poison to the listener clone
+        if listener.poison.set(listener.clone()).is_err() {
+            return Err("Failed to set poison cell".to_string());
+        }
         let listener_clone = Arc::clone(&listener);
         tokio::spawn(async move {
             let _ = listener_clone.listen().await;
@@ -165,7 +171,11 @@ impl Listener {
         }
     }
 
-    async fn handle_equery<'a>(&self, ip: SocketAddr, packet: Packet<'a>) -> Result<(), String> {
+    async fn handle_equery<'a>(
+        ip: SocketAddr,
+        packet: Packet<'a>,
+        listener: Arc<Listener>,
+    ) -> Result<(), String> {
         // Separate unicast and multicast questions
         let mut unicast_questions: Vec<Question<'a>> = vec![];
         let mut multicast_questions: Vec<Question<'a>> = vec![];
@@ -178,48 +188,48 @@ impl Listener {
         }
         // Prepare the response for unicast questions
         if !unicast_questions.is_empty() {
-            let mut response_packet = self.responder.answer_queries(unicast_questions);
+            let mut response_packet = listener.responder.answer_queries(unicast_questions);
             if !response_packet.answers.is_empty() && !response_packet.additional_records.is_empty()
             {
                 // do answer suppression for answers and aditonal answers
-                self.responder
-                    .suppress_known_answers(&mut response_packet.answers, &packet.answers);
-                self.responder.suppress_known_answers(
+                Responder::suppress_known_answers(&mut response_packet.answers, &packet.answers);
+                Responder::suppress_known_answers(
                     &mut response_packet.additional_records,
                     &packet.additional_records,
                 );
                 // serialize the response packet
                 if let Some(bytes) = super::serialize_packet(&mut response_packet) {
                     // send the response back to  the outer world
-                    self.send(ChannelMessage { ip, bytes }).await?;
+                    listener.send(ChannelMessage { ip, bytes }).await?;
                 }
             }
         }
         // Prepare the response for multicast questions
         if !multicast_questions.is_empty() {
-            let mut response_packet = self.responder.answer_queries(multicast_questions);
+            let mut response_packet = listener.responder.answer_queries(multicast_questions);
             if !response_packet.answers.is_empty() && !response_packet.additional_records.is_empty()
             {
                 // do answer suppression for answers and aditonal answers
-                self.responder
-                    .suppress_known_answers(&mut response_packet.answers, &packet.answers);
-                self.responder.suppress_known_answers(
+                Responder::suppress_known_answers(&mut response_packet.answers, &packet.answers);
+                Responder::suppress_known_answers(
                     &mut response_packet.additional_records,
                     &packet.additional_records,
                 );
                 // serialize the response packet
                 if let Some(bytes) = super::serialize_packet(&mut response_packet) {
                     // send the response back to the outer world
-                    self.send(ChannelMessage {
-                        ip: super::multicast_addr_v4().clone(),
-                        bytes,
-                    })
-                    .await?;
-                    self.send(ChannelMessage {
-                        ip: super::multicast_addr_v6().clone(),
-                        bytes,
-                    })
-                    .await?;
+                    listener
+                        .send(ChannelMessage {
+                            ip: super::multicast_addr_v4().clone(),
+                            bytes: bytes.clone(),
+                        })
+                        .await?;
+                    listener
+                        .send(ChannelMessage {
+                            ip: super::multicast_addr_v6().clone(),
+                            bytes,
+                        })
+                        .await?;
                 }
             }
         }
@@ -232,6 +242,7 @@ impl Listener {
         for _ in 0..total_cpus {
             let work_taker_clone = work_taker.clone();
             let tracker_clone = self.tracker.clone();
+            let poison_clone: Arc<Listener> = self.poison.get().unwrap().clone();
             tokio::spawn(async move {
                 while let Ok(msg) = work_taker_clone.recv().await {
                     let tracker = tracker_clone.clone();
@@ -241,7 +252,8 @@ impl Listener {
                         if packet.has_flags(PacketFlag::RESPONSE) {
                             Self::handle_response(packet, tracker).await;
                         } else {
-                            self.handle_equery(msg.ip, packet).await;
+                            _ = Self::handle_equery(msg.ip, packet, poison_clone.clone()).await;
+            
                         };
                     }
                 }

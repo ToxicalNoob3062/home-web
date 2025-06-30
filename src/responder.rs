@@ -2,9 +2,7 @@ use simple_dns::{
     CLASS, Name, Packet, QTYPE, Question, ResourceRecord, TYPE,
     rdata::{A, AAAA, PTR, RData, SRV},
 };
-
 use super::register::Registry;
-
 #[derive(Debug)]
 pub struct Responder {
     registry: Registry,

@@ -1,21 +1,19 @@
 use std::{
     collections::HashMap,
-    net::{IpAddr, Ipv4Addr, Ipv6Addr},
+    net::{IpAddr, Ipv4Addr, Ipv6Addr}, sync::Arc,
 };
-
 use dashmap::{DashMap, DashSet};
-
 use super::types::Instance;
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct Registry {
-    devices: DashMap<String, DashSet<Instance>>,
+    devices: Arc<DashMap<String, DashSet<Instance>>>,
 }
 
 impl Registry {
     pub fn new() -> Self {
         Registry {
-            devices: DashMap::new(),
+            devices: DashMap::new().into(),
         }
     }
 

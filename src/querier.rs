@@ -30,8 +30,30 @@ pub struct Querier {
 }
 
 impl Querier {
-    pub fn new(cache: Cache, tracker: Tracker) -> Self {
-        Querier { cache, tracker }
+    pub fn new(cache: Cache, tracker: Tracker, listener: Listener) -> Arc<Self> {
+        let querier = Arc::new(Querier {
+            cache,
+            tracker,
+        });
+        let querier_clone = querier.clone();
+        tokio::spawn(async move {
+            querier_clone.refresh_cache(&listener).await;
+        });
+        querier
+    }
+
+    async fn refresh_cache(&self, listener: &Listener) {
+        // iterate the entire cache and if the end time is about to expire lets say 10 seconds left only then will execute the query
+        let mut queries_to_refresh = Vec::new();
+        for (query, response) in self.cache.iter().await {
+            let remaining_ttl = response.ends_at.duration_since(SystemTime::now()).unwrap_or(Duration::from_secs(0));
+            if remaining_ttl.as_secs() < 10 {
+                queries_to_refresh.push((*query).clone());
+            }
+        }
+        for query in queries_to_refresh {
+            let _ = self.query(query, Duration::from_secs(30), true, listener).await;
+        }
     }
 
     async fn prepare_query(&self, query: &Query) -> Option<Vec<u8>> {
@@ -67,13 +89,14 @@ impl Querier {
     }
 
     pub async fn query(
-        &mut self,
+        &self,
         query: Query,
         duration: Duration,
+        bypass_cache: bool,
         listener: &Listener,
     ) -> Vec<Arc<Response>> {
         let response = self.cache.get(&query).await;
-        if response.is_empty() && !self.tracker.contains_key(&query) {
+        if (response.is_empty() && !self.tracker.contains_key(&query)) || bypass_cache {
             // If the response is not cached and not being tracked, we need to send a query
             let query_message = self.prepare_query(&query).await;
             let TimeBomb(trigger, mut receiver) = TimeBomb::new(duration);

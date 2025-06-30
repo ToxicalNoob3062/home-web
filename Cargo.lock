@@ -72,9 +72,9 @@ dependencies = [
 
 [[package]]
 name = "bazuka"
-version = "0.1.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16ccec5d862f12ecdf081cc7fd125d90c61710ee268ec487965a0eb7a480c272"
+checksum = "dd6a035128a7d9e10477db1e9f897882e431b06cce390ea57fe2da9bb641f346"
 dependencies = [
  "dashmap",
  "moka",
