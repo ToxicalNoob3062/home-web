@@ -166,18 +166,19 @@ impl<'a> From<ResponseInner> for RData<'a> {
     fn from(response: ResponseInner) -> Self {
         match response {
             ResponseInner::PTR(ptr) => RData::PTR(PTR(Name::new_unchecked(&ptr).into_owned())),
-            ResponseInner::SRV { port, target } => RData::SRV(SRV { priority: 0, weight: 0, port, target: Name::new_unchecked(&target).into_owned() }),
-            ResponseInner::TXT { strings } =>{
-                let text = TXT::new().into_owned();
-                for string in strings {
-                    let key = string.split('=').next().unwrap_or("").to_string();
-                    let value = string.split('=').nth(1).map(|v| v.to_string());
-                    text.attributes().insert(key, value);
-                }
-                RData::TXT(text)
-            },
-            ResponseInner::A { address } => RData::A(A { address: address.into() }),
-            ResponseInner::AAAA { address } => RData::AAAA(AAAA { address: address.into() }),
+            ResponseInner::SRV { port, target } => RData::SRV(SRV {
+                priority: 0,
+                weight: 0,
+                port,
+                target: Name::new_unchecked(&target).into_owned(),
+            }),
+            ResponseInner::TXT { strings } => RData::TXT(super::form_text_record(&strings)),
+            ResponseInner::A { address } => RData::A(A {
+                address: address.into(),
+            }),
+            ResponseInner::AAAA { address } => RData::AAAA(AAAA {
+                address: address.into(),
+            }),
         }
     }
 }
@@ -187,7 +188,6 @@ pub struct Response {
     pub inner: ResponseInner,
     pub ends_at: SystemTime,
 }
-
 
 #[derive(Debug)]
 pub struct ChannelMessage {

@@ -1,9 +1,9 @@
 use super::cache::*;
 use super::listener::Listener;
 use super::types::*;
+use simple_dns::{CLASS, Packet, QCLASS, Question, ResourceRecord};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
-use simple_dns::{Packet, Question, ResourceRecord, CLASS, QCLASS};
 use tokio::sync::mpsc;
 use tokio::time::sleep;
 
@@ -34,28 +34,45 @@ impl Querier {
         Querier { cache, tracker }
     }
 
-    async fn prepare_query(&self, query: &Query) -> ChannelMessage {
+    async fn prepare_query(&self, query: &Query) -> Option<Vec<u8>> {
         // make a query packet
         let mut packet = Packet::new_query(0);
-        packet.questions.push(Question::new(query.qname.clone(), query.qtype.clone().into(), QCLASS::CLASS(CLASS::IN), false));
+        packet.questions.push(Question::new(
+            query.qname.clone(),
+            query.qtype.clone().into(),
+            QCLASS::CLASS(CLASS::IN),
+            false,
+        ));
 
         // add previous known answers to the packet for answer supression
         let responses = self.cache.get(query).await;
         if !responses.is_empty() {
             for response in responses {
-                let remaining_ttl = response.ends_at
+                let remaining_ttl = response
+                    .ends_at
                     .duration_since(SystemTime::now())
                     .unwrap_or(Duration::from_secs(0))
                     .as_secs() as u32;
-                let record = ResourceRecord::new(query.qname.clone(), CLASS::IN, remaining_ttl, response.inner.clone().into());
+                let record = ResourceRecord::new(
+                    query.qname.clone(),
+                    CLASS::IN,
+                    remaining_ttl,
+                    response.inner.clone().into(),
+                );
                 packet.answers.push(record);
             }
         }
-        
-        // Prepare the query message to be sent over the network
-        ChannelMessage {
-            ip: "".parse().unwrap(), // Replace with actual IP address
-            bytes: Vec::new(),       // Assuming Query has a method to convert to bytes
+        // packet reduction
+        if !super::reduce_packet_size(&mut packet, 1472) {
+            return None;
+        }
+
+        // Convert the packet to bytes
+        let mut response_bytes = Vec::new();
+        if packet.write_to(&mut response_bytes).is_ok() {
+            Some(response_bytes)
+        } else {
+            None
         }
     }
 
@@ -71,9 +88,33 @@ impl Querier {
             let query_message = self.prepare_query(&query).await;
             let TimeBomb(trigger, mut receiver) = TimeBomb::new(duration);
             self.tracker.insert(query.clone(), trigger);
+            let query_message = match query_message {
+                Some(msg) => msg,
+                None => {
+                    eprintln!("Failed to prepare query message.");
+                    self.tracker.remove(&query);
+                    return vec![];
+                }
+            };
+            // trigger a network query
+            if let Err(e) = listener
+                .send(ChannelMessage {
+                    ip: *super::multicast_addr_v4(),
+                    bytes: query_message.clone(),
+                })
+                .await
+            {
+                eprintln!("Failed to send query: {}", e);
+                return vec![];
+            }
 
-            //  trigger a network query
-            if let Err(e) = listener.send(query_message).await {
+            if let Err(e) = listener
+                .send(ChannelMessage {
+                    ip: *super::multicast_addr_v6(),
+                    bytes: query_message,
+                })
+                .await
+            {
                 eprintln!("Failed to send query: {}", e);
                 return vec![];
             }

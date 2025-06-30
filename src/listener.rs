@@ -1,12 +1,12 @@
-use super::types::ChannelMessage;
 use super::cache::{Cache, Tracker};
-use simple_dns::{Packet, PacketFlag, CLASS};
+use super::types::ChannelMessage;
+use simple_dns::{CLASS, Packet, PacketFlag};
 use socket2::{Domain, Protocol, SockAddr, Socket, Type};
 use std::{
     net::{Ipv4Addr, Ipv6Addr, SocketAddrV4, SocketAddrV6},
     sync::Arc,
 };
-use tokio::{net::UdpSocket};
+use tokio::net::UdpSocket;
 
 #[derive(Debug)]
 pub struct Listener {
@@ -151,7 +151,8 @@ impl Listener {
         let responses = [packet.answers, packet.additional_records].concat();
         for response in responses {
             if matches!(response.class, CLASS::IN) {
-                if let Some((query, response, ttl)) = super::prepare_triplet_from_record(&response) {
+                if let Some((query, response, ttl)) = super::prepare_triplet_from_record(&response)
+                {
                     if let Some(sender) = tracker.get(&query) {
                         // Send the response back to the querier
                         if sender.send(Some((response, ttl))).await.is_err() {
@@ -176,7 +177,7 @@ impl Listener {
                         .map_err(|e| println!("Error parsing packet: {}", e))
                     {
                         if packet.has_flags(PacketFlag::RESPONSE) {
-                           Self::handle_response(packet, tracker).await;
+                            Self::handle_response(packet, tracker).await;
                         } else {
                             // Process the query packet
                         };
