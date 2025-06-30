@@ -37,7 +37,11 @@ impl Querier {
         });
         let querier_clone = querier.clone();
         tokio::spawn(async move {
-            querier_clone.refresh_cache(&listener).await;
+            //refesh every 60 seconds
+            loop {
+                querier_clone.refresh_cache(&listener).await;
+                sleep(Duration::from_secs(60)).await;
+            }
         });
         querier
     }
