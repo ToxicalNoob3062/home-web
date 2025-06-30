@@ -1,7 +1,12 @@
 use std::collections::HashMap;
 use std::net::{Ipv4Addr, Ipv6Addr};
+use std::sync::Arc;
 use std::time::Duration;
-use simple_dns::Name; // Import Name type
+use bazuka::{SkmvCache, SkmvConfig};
+use dashmap::DashMap;
+use simple_dns::Name; use crate::cache::Tracker;
+
+// Import Name type
 use super::listener::Listener;
 use super::cache::Cache;
 use super::register::Registry;
@@ -12,10 +17,8 @@ use super::types::*;
 /// HomeWeb API for managing devices in a home network via service discovery.
 pub struct HomeWeb {
     register: Registry,
-    cache: Cache,
-    querier: Querier,
-    listener: Listener,
-    responder: Responder,
+    listener: Arc<Listener>,
+    querier: Arc<Querier>,
 }
 
 impl HomeWeb {
@@ -85,6 +88,27 @@ impl HomeWeb {
 }
 
 impl HomeWeb {
+    pub fn new() -> Result<Self, String> {
+        let registry = Registry::new();
+        let responder = Responder::new(registry.clone());
+        let tracker:Tracker = Arc::new(DashMap::new());
+        let listener = Listener::new(tracker.clone(),responder)?;
+
+        let cache:Cache = Arc::new(SkmvCache::new(SkmvConfig{
+            idle_timeout: Some(40),
+            maximum_capacity:200,
+            maximum_values_per_key:2,
+            time_to_live: Some(120)
+        }));
+
+        let querier = Querier::new(cache.clone(), tracker.clone(), listener.clone());
+        Ok(HomeWeb {
+            register: Registry::new(),
+            querier,
+            listener,
+        })
+    }
+
     pub async fn get_devices(&self, svc_type: String, duration: Duration) -> Vec<String> {
         let query = Query{
             qname: Name::new_unchecked(&svc_type).into_owned(),

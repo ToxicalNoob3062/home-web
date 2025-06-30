@@ -30,7 +30,7 @@ pub struct Querier {
 }
 
 impl Querier {
-    pub fn new(cache: Cache, tracker: Tracker, listener: Listener) -> Arc<Self> {
+    pub fn new(cache: Cache, tracker: Tracker, listener: Arc<Listener>) -> Arc<Self> {
         let querier = Arc::new(Querier {
             cache,
             tracker,
@@ -56,7 +56,7 @@ impl Querier {
             }
         }
         for query in queries_to_refresh {
-            let _ = self.query(query, Duration::from_secs(30), true, listener).await;
+            let _ = self.query(query, Duration::from_secs(5), true, listener).await;
         }
     }
 

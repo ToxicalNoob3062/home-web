@@ -16,6 +16,9 @@ mod register;
 mod responder;
 mod types;
 
+pub use api::HomeWeb;
+pub use types::Instance;
+
 #[macro_export]
 macro_rules! global {
     ($static_name:ident, $fn_name:ident, $type:ty, $init:expr) => {
@@ -72,7 +75,7 @@ pub fn random_alphanumeric_string(len: usize) -> String {
         .collect()
 }
 
-pub fn prepare_triplet_from_record<'a>(
+fn prepare_triplet_from_record<'a>(
     record: &ResourceRecord<'a>,
 ) -> Option<(Query, Response, u32)> {
     let mut triplet: Option<(Query, Response, u32)> = None;

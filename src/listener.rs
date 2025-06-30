@@ -176,6 +176,7 @@ impl Listener {
         packet: Packet<'a>,
         listener: Arc<Listener>,
     ) -> Result<(), String> {
+        println!("Received query from: {} for {:?}", ip, packet.questions);
         // Separate unicast and multicast questions
         let mut unicast_questions: Vec<Question<'a>> = vec![];
         let mut multicast_questions: Vec<Question<'a>> = vec![];
@@ -195,7 +196,7 @@ impl Listener {
                 Responder::suppress_known_answers(&mut response_packet.answers, &packet.answers);
                 Responder::suppress_known_answers(
                     &mut response_packet.additional_records,
-                    &packet.additional_records,
+                    &packet.answers,
                 );
                 // serialize the response packet
                 if let Some(bytes) = super::serialize_packet(&mut response_packet) {
