@@ -1,13 +1,16 @@
 use super::cache::Tracker;
 use super::responder::Responder;
-use super::types::ChannelMessage;
+use super::types::{
+    ChannelMessage,
+    Response
+};
 use simple_dns::{CLASS, Packet, PacketFlag, Question};
 use socket2::{Domain, Protocol, SockAddr, Socket, Type};
 use std::{
     net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
     sync::Arc,
 };
-use tokio::{net::UdpSocket, sync::OnceCell};
+use tokio::{net::UdpSocket, sync::{mpsc, OnceCell}};
 
 #[derive(Debug)]
 pub struct Listener {
@@ -153,23 +156,27 @@ impl Listener {
         }
     }
 
-    async fn handle_response<'a>(packet: Packet<'a>, tracker: Tracker) {
+    async fn transfer_packet<'a>(sender: &mpsc::Sender<Option<(Response, u32)>>, packet:&Packet<'a>){
+        let responses = [&packet.answers, &packet.additional_records]
+            .into_iter()
+            .flatten()
+            .filter(|r| matches!(r.class, CLASS::IN))
+            .filter_map(|r| super::prepare_triplet_from_record(&r))
+            .collect::<Vec<_>>();
+        for (_, response, ttl) in responses {
+            let _ = sender.send(Some((response, ttl))).await;
+        }
+    }
+
+    async fn handle_response<'a>(packet: &Packet<'a>, tracker: Tracker) {
         // Handle the response from the cache or the network
-        let responses = [packet.answers, packet.additional_records].concat();
-        for response in responses {
+        for response in &packet.answers {
             if matches!(response.class, CLASS::IN) {
-                if let Some((query, response, ttl)) = super::prepare_triplet_from_record(&response)
+                if let Some((query, _,_)) = super::prepare_triplet_from_record(&response)
                 {
                     if let Some(sender) = tracker.get(&query) {
-                        // print the packet to see which response we are receving
-                        println!(
-                            "Received response for query: {:?} for packet: {:?}",
-                            query, response
-                        );
-                        // Send the response back to the querier
-                        if sender.send(Some((response, ttl))).await.is_err() {
-                            println!("Failed to send response for query: {:?}", query);
-                        }
+                        Self::transfer_packet(sender.value(), &packet).await;
+                        break;
                     }
                 }
             }
@@ -210,7 +217,6 @@ impl Listener {
                 }
             }
         }
-        // Prepare the response for multicast questions
         // Prepare the response for multicast questions
         if !multicast_questions.is_empty() {
             let mut response_packet = listener.responder.answer_queries(multicast_questions);
@@ -264,7 +270,7 @@ impl Listener {
                         .map_err(|e| println!("Error parsing packet: {}", e))
                     {
                         if packet.has_flags(PacketFlag::RESPONSE) {
-                            Self::handle_response(packet, tracker).await;
+                            Self::handle_response(&packet, tracker).await;
                         } else {
                             _ = Self::handle_equery(msg.ip, packet, poison_clone.clone()).await;
                         };

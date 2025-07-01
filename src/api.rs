@@ -20,6 +20,7 @@ pub struct HomeWeb {
     register: Registry,
     listener: Arc<Listener>,
     querier: Arc<Querier>,
+    cache: Cache,
 }
 
 impl HomeWeb {
@@ -127,6 +128,7 @@ impl HomeWeb {
             register: registry,
             querier,
             listener,
+            cache,
         })
     }
 
@@ -167,6 +169,10 @@ impl HomeWeb {
             .into_iter()
             .map(std::net::IpAddr::V6)
             .collect::<Vec<_>>();
+
+        //  print cache
+        println!("Current cache: {:#?}", self.cache);
+
         Some(Device {
             name: instance_name,
             port,

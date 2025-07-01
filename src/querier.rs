@@ -45,6 +45,7 @@ impl Querier {
 
     async fn refresh_cache(&self, listener: &Listener) {
         // iterate the entire cache and if the end time is about to expire lets say 10 seconds left only then will execute the query
+        println!("Refreshing cache...");
         let mut queries_to_refresh = Vec::new();
         for (query, response) in self.cache.iter().await {
             let remaining_ttl = response
@@ -102,7 +103,7 @@ impl Querier {
         listener: &Listener,
     ) -> Vec<Arc<Response>> {
         let response = self.cache.get(&query).await;
-        if (response.is_empty() && !self.tracker.contains_key(&query)) || bypass_cache {
+        if bypass_cache || (response.is_empty() && !self.tracker.contains_key(&query)) {
             // If the response is not cached and not being tracked, we need to send a query
             let query_message = self.prepare_query(&query).await;
             let TimeBomb(trigger, mut receiver) = TimeBomb::new(duration);
