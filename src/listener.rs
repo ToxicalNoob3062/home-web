@@ -161,6 +161,8 @@ impl Listener {
                 if let Some((query, response, ttl)) = super::prepare_triplet_from_record(&response)
                 {
                     if let Some(sender) = tracker.get(&query) {
+                        // print the packet to see which response we are receving
+                        println!("Received response for query: {:?} for packet: {:?}", query, response);
                         // Send the response back to the querier
                         if sender.send(Some((response, ttl))).await.is_err() {
                             println!("Failed to send response for query: {:?}", query);

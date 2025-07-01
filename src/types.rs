@@ -3,8 +3,10 @@ use std::time::SystemTime;
 use std::{
     collections::HashMap,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
+    hash::{Hash, Hasher},
 };
 
+#[derive(Debug)]
 pub struct Device {
     pub name: String,
     pub port: u16,
@@ -194,11 +196,25 @@ impl<'a> From<ResponseInner> for RData<'a> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone)]
 pub struct Response {
     pub inner: ResponseInner,
     pub ends_at: SystemTime,
 }
+
+impl Hash for Response {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.inner.hash(state); // Only hash inner
+    }
+}
+
+impl PartialEq for Response {
+    fn eq(&self, other: &Self) -> bool {
+        self.inner == other.inner // Only compare inner
+    }
+}
+impl Eq for Response {}
+
 
 #[derive(Debug)]
 pub struct ChannelMessage {

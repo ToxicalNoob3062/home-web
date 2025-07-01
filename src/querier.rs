@@ -139,7 +139,7 @@ impl Querier {
             // Wait for the time bomb to trigger or for a response to be cached
             while let Some(response) = receiver.recv().await {
                 if let Some(resp) = response {
-                    println!("Querier received response: {:?}", resp);
+                    // println!("Querier received response: {:?}", resp);
                     self.cache.insert(query.clone(), resp.0, resp.1).await;
                 } else {
                     println!("Querier received timeout, no response found.");
