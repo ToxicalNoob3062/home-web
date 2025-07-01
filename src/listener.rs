@@ -199,8 +199,6 @@ impl Listener {
                 );
                 // serialize the response packet
                 if let Some(bytes) = super::serialize_packet(&mut response_packet) {
-                    // print the serialized response packet
-                    println!("Serialized Response Packet: {:?}, {}", bytes,ip);
                     // send the response back to  the outer world
                     listener.send(ChannelMessage { ip, bytes }).await?;
                 }
