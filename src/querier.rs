@@ -145,7 +145,9 @@ impl Querier {
                 if let Some(resp) = response {
                     self.cache.insert(query.clone(), resp.0, resp.1).await;
                 } else {
-                    println!("Querier received timeout, no response found.");
+                    println!("Querier received timeout, for query: {:?}", query);
+                    // also print the cache to see how the cache state looks after the query
+                    println!("Current cache state: {:?}", self.cache);
                     self.tracker.remove(&query);
                     return self.cache.get(&query).await;
                 }
