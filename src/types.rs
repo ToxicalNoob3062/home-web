@@ -2,8 +2,8 @@ use simple_dns::{Name, QTYPE, TYPE, rdata::*};
 use std::time::SystemTime;
 use std::{
     collections::HashMap,
-    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     hash::{Hash, Hasher},
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
 };
 
 #[derive(Debug)]
@@ -214,7 +214,6 @@ impl PartialEq for Response {
     }
 }
 impl Eq for Response {}
-
 
 #[derive(Debug)]
 pub struct ChannelMessage {

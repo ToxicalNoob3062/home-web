@@ -2,7 +2,6 @@ use std::{collections::HashMap, time::Duration};
 
 use home_web::*;
 
-
 #[tokio::main]
 async fn main() {
     let hw = HomeWeb::new().expect("Failed to create HomeWeb instance");
@@ -19,7 +18,10 @@ async fn main() {
 
     // whever i press q trigger query
     let device = hw
-        .resolve_device("potato._homecast._tcp.local".to_string(), Duration::from_secs(5))
+        .resolve_device(
+            "potato._homecast._tcp.local".to_string(),
+            Duration::from_secs(5),
+        )
         .await
         .expect("Failed to resolve device");
     println!("Resolved device: {:?}", device);

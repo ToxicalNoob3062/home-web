@@ -1,11 +1,12 @@
+use super::types::Instance;
+use dashmap::{DashMap, DashSet};
 use std::{
     collections::HashMap,
-    net::{IpAddr, Ipv4Addr, Ipv6Addr}, sync::Arc,
+    net::{IpAddr, Ipv4Addr, Ipv6Addr},
+    sync::Arc,
 };
-use dashmap::{DashMap, DashSet};
-use super::types::Instance;
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub struct Registry {
     devices: Arc<DashMap<String, DashSet<Instance>>>,
 }
@@ -29,7 +30,9 @@ impl Registry {
         let service_type = Instance::break_instance_str(instance)?;
         if let Some(instances) = self.devices.get(&service_type) {
             if let Some(ins) =
-                instances.value().get(&Instance::new(instance.to_string(), 100, HashMap::new())?)
+                instances
+                    .value()
+                    .get(&Instance::new(instance.to_string(), 100, HashMap::new())?)
             {
                 return Ok(ins.clone());
             }
@@ -71,8 +74,10 @@ impl Registry {
 
     pub fn register_device(&mut self, instance: Instance) {
         let service_type = instance.service_type();
-        {let instances = self.devices.entry(service_type.clone()).or_default();
-        instances.value().insert(instance);}
+        {
+            let instances = self.devices.entry(service_type.clone()).or_default();
+            instances.value().insert(instance);
+        }
         println!("Registered device: {:?}", self.devices);
     }
 

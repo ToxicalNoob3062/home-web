@@ -1,8 +1,8 @@
+use super::register::Registry;
 use simple_dns::{
     CLASS, Name, Packet, QTYPE, Question, ResourceRecord, TYPE,
     rdata::{A, AAAA, PTR, RData, SRV},
 };
-use super::register::Registry;
 #[derive(Debug)]
 pub struct Responder {
     registry: Registry,
@@ -125,7 +125,11 @@ impl Responder {
     }
 
     // Prepares a response packet for PTR queries by injecting PTR, SRV, and TXT records.
-    fn prepare_ptr_response<'a>(&self, qname: &Name<'a>, response_packet: &mut Packet<'a>) -> Result<(), String> {
+    fn prepare_ptr_response<'a>(
+        &self,
+        qname: &Name<'a>,
+        response_packet: &mut Packet<'a>,
+    ) -> Result<(), String> {
         self.inject_ptr_records(qname, response_packet)?;
         let ptr_records: Vec<_> = response_packet
             .answers
@@ -146,7 +150,11 @@ impl Responder {
     }
 
     // Prepares a response packet for SRV queries by injecting SRV, A, and AAAA records.
-    fn prepare_srv_response<'a>(&self, qname: &Name<'a>, response_packet: &mut Packet<'a>) -> Result<(), String> {
+    fn prepare_srv_response<'a>(
+        &self,
+        qname: &Name<'a>,
+        response_packet: &mut Packet<'a>,
+    ) -> Result<(), String> {
         self.inject_srv_records(true, qname, response_packet)?;
         if let Some(first_srv) = response_packet.answers.first() {
             if let RData::SRV(_) = &first_srv.rdata {
@@ -163,7 +171,7 @@ impl Responder {
             if let QTYPE::TYPE(qtype) = question.qtype {
                 match qtype {
                     TYPE::PTR => {
-                        _= self.prepare_ptr_response(&question.qname, &mut response_packet);
+                        _ = self.prepare_ptr_response(&question.qname, &mut response_packet);
                     }
                     TYPE::SRV => {
                         _ = self.prepare_srv_response(&question.qname, &mut response_packet);

@@ -31,10 +31,7 @@ pub struct Querier {
 
 impl Querier {
     pub fn new(cache: Cache, tracker: Tracker, listener: Arc<Listener>) -> Arc<Self> {
-        let querier = Arc::new(Querier {
-            cache,
-            tracker,
-        });
+        let querier = Arc::new(Querier { cache, tracker });
         let querier_clone = querier.clone();
         tokio::spawn(async move {
             //refesh every 60 seconds
@@ -50,13 +47,18 @@ impl Querier {
         // iterate the entire cache and if the end time is about to expire lets say 10 seconds left only then will execute the query
         let mut queries_to_refresh = Vec::new();
         for (query, response) in self.cache.iter().await {
-            let remaining_ttl = response.ends_at.duration_since(SystemTime::now()).unwrap_or(Duration::from_secs(0));
+            let remaining_ttl = response
+                .ends_at
+                .duration_since(SystemTime::now())
+                .unwrap_or(Duration::from_secs(0));
             if remaining_ttl.as_secs() < 10 {
                 queries_to_refresh.push((*query).clone());
             }
         }
         for query in queries_to_refresh {
-            let _ = self.query(query, Duration::from_secs(5), true, listener).await;
+            let _ = self
+                .query(query, Duration::from_secs(5), true, listener)
+                .await;
         }
     }
 

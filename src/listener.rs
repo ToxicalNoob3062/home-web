@@ -162,7 +162,10 @@ impl Listener {
                 {
                     if let Some(sender) = tracker.get(&query) {
                         // print the packet to see which response we are receving
-                        println!("Received response for query: {:?} for packet: {:?}", query, response);
+                        println!(
+                            "Received response for query: {:?} for packet: {:?}",
+                            query, response
+                        );
                         // Send the response back to the querier
                         if sender.send(Some((response, ttl))).await.is_err() {
                             println!("Failed to send response for query: {:?}", query);
@@ -191,7 +194,8 @@ impl Listener {
         // Prepare the response for unicast questions
         if !unicast_questions.is_empty() {
             let mut response_packet = listener.responder.answer_queries(unicast_questions);
-            if !(response_packet.answers.is_empty() && response_packet.additional_records.is_empty())
+            if !(response_packet.answers.is_empty()
+                && response_packet.additional_records.is_empty())
             {
                 // do answer suppression for answers and aditonal answers
                 Responder::suppress_known_answers(&mut response_packet.answers, &packet.answers);
@@ -207,11 +211,13 @@ impl Listener {
             }
         }
         // Prepare the response for multicast questions
+        // Prepare the response for multicast questions
         if !multicast_questions.is_empty() {
             let mut response_packet = listener.responder.answer_queries(multicast_questions);
-            if !(response_packet.answers.is_empty() && response_packet.additional_records.is_empty())
+            if !(response_packet.answers.is_empty()
+                && response_packet.additional_records.is_empty())
             {
-                // do answer suppression for answers and aditonal answers
+                // do answer suppression for answers and additional answers
                 Responder::suppress_known_answers(&mut response_packet.answers, &packet.answers);
                 Responder::suppress_known_answers(
                     &mut response_packet.additional_records,
@@ -219,22 +225,28 @@ impl Listener {
                 );
                 // serialize the response packet
                 if let Some(bytes) = super::serialize_packet(&mut response_packet) {
-                    // send the response back to the outer world
-                    listener
-                        .send(ChannelMessage {
-                            ip: super::multicast_addr_v4().clone(),
-                            bytes: bytes.clone(),
-                        })
-                        .await?;
-                    listener
-                        .send(ChannelMessage {
-                            ip: super::multicast_addr_v6().clone(),
-                            bytes,
-                        })
-                        .await?;
+                    match ip {
+                        SocketAddr::V4(_) => {
+                            listener
+                                .send(ChannelMessage {
+                                    ip: super::multicast_addr_v4().clone(),
+                                    bytes,
+                                })
+                                .await?;
+                        }
+                        SocketAddr::V6(_) => {
+                            listener
+                                .send(ChannelMessage {
+                                    ip: super::multicast_addr_v6().clone(),
+                                    bytes,
+                                })
+                                .await?;
+                        }
+                    }
                 }
             }
         }
+
         Ok(())
     }
 
@@ -255,7 +267,6 @@ impl Listener {
                             Self::handle_response(packet, tracker).await;
                         } else {
                             _ = Self::handle_equery(msg.ip, packet, poison_clone.clone()).await;
-            
                         };
                     }
                 }
