@@ -157,6 +157,7 @@ impl Listener {
     }
 
     async fn transfer_packet<'a>(sender: &mpsc::Sender<Option<(Response, u32)>>, packet:&Packet<'a>){
+        println!("Transferring packet: {:?}", packet);
         let responses = [&packet.answers, &packet.additional_records]
             .into_iter()
             .flatten()

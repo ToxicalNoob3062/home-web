@@ -156,13 +156,16 @@ impl HomeWeb {
         duration: Duration,
     ) -> Option<Device> {
         let (port, target) = self.resolve_srv(instance_name.clone(), duration).await?;
+        
         let txt = self.resolve_txt(instance_name.clone(), duration).await;
+        
         let a_records = self
             .resolve_a(target.clone(), duration)
             .await?
             .into_iter()
             .map(std::net::IpAddr::V4)
             .collect::<Vec<_>>();
+        
         let aaaa_records = self
             .resolve_aaaa(target.clone(), duration)
             .await?

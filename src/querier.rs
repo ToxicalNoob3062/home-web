@@ -36,8 +36,8 @@ impl Querier {
         tokio::spawn(async move {
             //refesh every 60 seconds
             loop {
-                querier_clone.refresh_cache(&listener).await;
                 sleep(Duration::from_secs(60)).await;
+                querier_clone.refresh_cache(&listener).await;
             }
         });
         querier
@@ -53,6 +53,7 @@ impl Querier {
                 .duration_since(SystemTime::now())
                 .unwrap_or(Duration::from_secs(0));
             if remaining_ttl.as_secs() < 10 {
+                println!("Refreshing query: {:?}", query);
                 queries_to_refresh.push((*query).clone());
             }
         }
@@ -142,7 +143,6 @@ impl Querier {
             // Wait for the time bomb to trigger or for a response to be cached
             while let Some(response) = receiver.recv().await {
                 if let Some(resp) = response {
-                    // println!("Querier received response: {:?}", resp);
                     self.cache.insert(query.clone(), resp.0, resp.1).await;
                 } else {
                     println!("Querier received timeout, no response found.");
