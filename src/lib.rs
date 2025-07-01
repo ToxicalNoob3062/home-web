@@ -76,89 +76,66 @@ pub fn random_alphanumeric_string(len: usize) -> String {
 }
 
 fn prepare_triplet_from_record<'a>(record: &ResourceRecord<'a>) -> Option<(Query, Response, u32)> {
-    let mut triplet: Option<(Query, Response, u32)> = None;
+    let name = record.name.clone().into_owned();
+    let ttl = record.ttl;
+    let ends_at = SystemTime::now() + Duration::from_secs(ttl as u64);
+
     match &record.rdata {
-        RData::PTR(ptr) => {
-            triplet = Some((
-                Query {
-                    qname: record.name.clone().into_owned(),
-                    qtype: QueryType::PTR,
+        RData::PTR(ptr) => Some((
+            Query { qname: name, qtype: QueryType::PTR },
+            Response {
+                inner: ResponseInner::PTR(ptr.to_string()),
+                ends_at,
+            },
+            ttl,
+        )),
+        RData::SRV(srv) => Some((
+            Query { qname: name, qtype: QueryType::SRV },
+            Response {
+                inner: ResponseInner::SRV {
+                    port: srv.port,
+                    target: srv.target.to_string(),
                 },
-                Response {
-                    inner: ResponseInner::PTR(ptr.to_string()),
-                    ends_at: SystemTime::now() + Duration::from_secs(record.ttl as u64),
+                ends_at,
+            },
+            ttl,
+        )),
+        RData::TXT(txt) => Some((
+            Query { qname: name, qtype: QueryType::TXT },
+            Response {
+                inner: ResponseInner::TXT {
+                    strings: txt
+                        .attributes()
+                        .into_iter()
+                        .filter_map(|(k, v)| v.map(|val| format!("{}={}", k, val)))
+                        .collect(),
                 },
-                record.ttl,
-            ));
-        }
-        RData::SRV(srv) => {
-            triplet = Some((
-                Query {
-                    qname: record.name.clone().into_owned(),
-                    qtype: QueryType::SRV,
+                ends_at,
+            },
+            ttl,
+        )),
+        RData::A(a) => Some((
+            Query { qname: name, qtype: QueryType::A },
+            Response {
+                inner: ResponseInner::A {
+                    address: a.address.into(),
                 },
-                Response {
-                    inner: ResponseInner::SRV {
-                        port: srv.port,
-                        target: srv.target.to_string(),
-                    },
-                    ends_at: SystemTime::now() + Duration::from_secs(record.ttl as u64),
+                ends_at,
+            },
+            ttl,
+        )),
+        RData::AAAA(aaaa) => Some((
+            Query { qname: name, qtype: QueryType::AAAA },
+            Response {
+                inner: ResponseInner::AAAA {
+                    address: aaaa.address.into(),
                 },
-                record.ttl,
-            ));
-        }
-        RData::TXT(txt) => {
-            triplet = Some((
-                Query {
-                    qname: record.name.clone().into_owned(),
-                    qtype: QueryType::TXT,
-                },
-                Response {
-                    inner: ResponseInner::TXT {
-                        strings: txt
-                            .attributes()
-                            .into_iter()
-                            .filter_map(|(k, v)| v.map(|val| format!("{}={}", k, val)))
-                            .collect(),
-                    },
-                    ends_at: SystemTime::now() + Duration::from_secs(record.ttl as u64),
-                },
-                record.ttl,
-            ));
-        }
-        RData::A(a) => {
-            triplet = Some((
-                Query {
-                    qname: record.name.clone().into_owned(),
-                    qtype: QueryType::A,
-                },
-                Response {
-                    inner: ResponseInner::A {
-                        address: a.address.into(),
-                    },
-                    ends_at: SystemTime::now() + Duration::from_secs(record.ttl as u64),
-                },
-                record.ttl,
-            ));
-        }
-        RData::AAAA(aaaa) => {
-            triplet = Some((
-                Query {
-                    qname: record.name.clone().into_owned(),
-                    qtype: QueryType::AAAA,
-                },
-                Response {
-                    inner: ResponseInner::AAAA {
-                        address: aaaa.address.into(),
-                    },
-                    ends_at: SystemTime::now() + Duration::from_secs(record.ttl as u64),
-                },
-                record.ttl,
-            ));
-        }
-        _ => {}
+                ends_at,
+            },
+            ttl,
+        )),
+        _ => None,
     }
-    triplet
 }
 
 fn form_text_record(metadata: &Vec<String>) -> TXT<'static> {

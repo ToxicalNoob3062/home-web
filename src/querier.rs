@@ -47,16 +47,19 @@ impl Querier {
         // iterate the entire cache and if the end time is about to expire lets say 10 seconds left only then will execute the query
         println!("Refreshing cache...");
         let mut queries_to_refresh = Vec::new();
+        let now = SystemTime::now();
         for (query, response) in self.cache.iter().await {
             let remaining_ttl = response
                 .ends_at
-                .duration_since(SystemTime::now())
+                .duration_since(now)
                 .unwrap_or(Duration::from_secs(0));
+            println!("Query {:?} has {}s remaining", query, remaining_ttl.as_secs());
             if remaining_ttl.as_secs() < 10 {
                 println!("Refreshing query: {:?}", query);
                 queries_to_refresh.push((*query).clone());
             }
         }
+
         for query in queries_to_refresh {
             let _ = self
                 .query(query, Duration::from_secs(5), true, listener)
@@ -145,9 +148,10 @@ impl Querier {
                 if let Some(resp) = response {
                     self.cache.insert(query.clone(), resp.0, resp.1).await;
                 } else {
-                    println!("Querier received timeout, for query: {:?}", query);
+                    let cache_resp = self.cache.get(&query).await;
+                    println!("Querier received timeout, for query: {:?} with {:?}", query, cache_resp);
                     self.tracker.remove(&query);
-                    return self.cache.get(&query).await;
+                    return cache_resp;
                 }
             }
             vec![]

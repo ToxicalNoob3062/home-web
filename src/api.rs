@@ -72,19 +72,28 @@ impl HomeWeb {
             qname: Name::new_unchecked(&hostname).into_owned(),
             qtype: QueryType::A,
         };
-        // pick the first response
-        self.querier
+
+        let responses = self
+            .querier
             .query(query, duration, false, &self.listener)
-            .await
+            .await;
+
+        let addresses = responses
             .into_iter()
-            .next()
-            .and_then(|response| {
-                if let ResponseInner::A { address } = &response.inner {
-                    Some(vec![*address])
+            .filter_map(|response| {
+                if let ResponseInner::A { address } = response.inner {
+                    Some(address)
                 } else {
                     None
                 }
             })
+            .collect::<Vec<_>>();
+
+        if addresses.is_empty() {
+            None
+        } else {
+            Some(addresses)
+        }
     }
 
     async fn resolve_aaaa(&self, hostname: String, duration: Duration) -> Option<Vec<Ipv6Addr>> {
@@ -92,19 +101,28 @@ impl HomeWeb {
             qname: Name::new_unchecked(&hostname).into_owned(),
             qtype: QueryType::AAAA,
         };
-        // pick the first response
-        self.querier
+
+        let responses = self
+            .querier
             .query(query, duration, false, &self.listener)
-            .await
+            .await;
+
+        let addresses = responses
             .into_iter()
-            .next()
-            .and_then(|response| {
-                if let ResponseInner::AAAA { address } = &response.inner {
-                    Some(vec![*address])
+            .filter_map(|response| {
+                if let ResponseInner::AAAA { address } = response.inner {
+                    Some(address)
                 } else {
                     None
                 }
             })
+            .collect::<Vec<_>>();
+
+        if addresses.is_empty() {
+            None
+        } else {
+            Some(addresses)
+        }
     }
 }
 
@@ -156,16 +174,16 @@ impl HomeWeb {
         duration: Duration,
     ) -> Option<Device> {
         let (port, target) = self.resolve_srv(instance_name.clone(), duration).await?;
-        
+
         let txt = self.resolve_txt(instance_name.clone(), duration).await;
-        
+
         let a_records = self
             .resolve_a(target.clone(), duration)
             .await?
             .into_iter()
             .map(std::net::IpAddr::V4)
             .collect::<Vec<_>>();
-        
+
         let aaaa_records = self
             .resolve_aaaa(target.clone(), duration)
             .await?

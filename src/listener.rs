@@ -1,16 +1,16 @@
 use super::cache::Tracker;
 use super::responder::Responder;
-use super::types::{
-    ChannelMessage,
-    Response
-};
+use super::types::{ChannelMessage, Response};
 use simple_dns::{CLASS, Packet, PacketFlag, Question};
 use socket2::{Domain, Protocol, SockAddr, Socket, Type};
 use std::{
     net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
     sync::Arc,
 };
-use tokio::{net::UdpSocket, sync::{mpsc, OnceCell}};
+use tokio::{
+    net::UdpSocket,
+    sync::{OnceCell, mpsc},
+};
 
 #[derive(Debug)]
 pub struct Listener {
@@ -156,7 +156,10 @@ impl Listener {
         }
     }
 
-    async fn transfer_packet<'a>(sender: &mpsc::Sender<Option<(Response, u32)>>, packet:&Packet<'a>){
+    async fn transfer_packet<'a>(
+        sender: &mpsc::Sender<Option<(Response, u32)>>,
+        packet: &Packet<'a>,
+    ) {
         println!("Transferring packet: {:?}", packet);
         let responses = [&packet.answers, &packet.additional_records]
             .into_iter()
@@ -173,8 +176,7 @@ impl Listener {
         // Handle the response from the cache or the network
         for response in &packet.answers {
             if matches!(response.class, CLASS::IN) {
-                if let Some((query, _,_)) = super::prepare_triplet_from_record(&response)
-                {
+                if let Some((query, _, _)) = super::prepare_triplet_from_record(&response) {
                     if let Some(sender) = tracker.get(&query) {
                         Self::transfer_packet(sender.value(), &packet).await;
                         break;
