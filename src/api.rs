@@ -1,4 +1,3 @@
-use crate::cache::Tracker;
 use bazuka::{SkmvCache, SkmvConfig};
 use dashmap::DashMap;
 use simple_dns::Name;
@@ -8,6 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 // Import Name type
+use super::cache::Tracker;
 use super::cache::Cache;
 use super::listener::Listener;
 use super::querier::Querier;
@@ -155,7 +155,7 @@ impl HomeWeb {
             qname: Name::new_unchecked(&svc_type).into_owned(),
             qtype: QueryType::PTR,
         };
-        self.querier
+        let responses = self.querier
             .query(query, duration, false, &self.listener)
             .await
             .iter()
@@ -166,7 +166,10 @@ impl HomeWeb {
                     None
                 }
             })
-            .collect()
+            .collect();
+        //  print cache
+        println!("Current cache: {:#?}", self.cache);
+        responses
     }
     pub async fn resolve_device(
         &self,

@@ -1,6 +1,6 @@
 use super::cache::Tracker;
 use super::responder::Responder;
-use super::types::{ChannelMessage, Response};
+use super::types::{ChannelMessage, Response,Query};
 use simple_dns::{CLASS, Packet, PacketFlag, Question};
 use socket2::{Domain, Protocol, SockAddr, Socket, Type};
 use std::{
@@ -157,7 +157,7 @@ impl Listener {
     }
 
     async fn transfer_packet<'a>(
-        sender: &mpsc::Sender<Option<(Response, u32)>>,
+        sender: &mpsc::Sender<Option<(Query, Response, u32)>>,
         packet: &Packet<'a>,
     ) {
         println!("Transferring packet: {:?}", packet);
@@ -167,8 +167,8 @@ impl Listener {
             .filter(|r| matches!(r.class, CLASS::IN))
             .filter_map(|r| super::prepare_triplet_from_record(&r))
             .collect::<Vec<_>>();
-        for (_, response, ttl) in responses {
-            let _ = sender.send(Some((response, ttl))).await;
+        for (query, response, ttl) in responses {
+            let _ = sender.send(Some((query,response, ttl))).await;
         }
     }
 

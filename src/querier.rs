@@ -8,8 +8,8 @@ use tokio::sync::mpsc;
 use tokio::time::sleep;
 
 struct TimeBomb(
-    mpsc::Sender<Option<(Response, u32)>>,
-    mpsc::Receiver<Option<(Response, u32)>>,
+    mpsc::Sender<Option<(Query, Response, u32)>>,
+    mpsc::Receiver<Option<(Query, Response, u32)>>,
 );
 
 impl TimeBomb {
@@ -53,9 +53,9 @@ impl Querier {
                 .ends_at
                 .duration_since(now)
                 .unwrap_or(Duration::from_secs(0));
-            println!("Query {:?} has {}s remaining", query, remaining_ttl.as_secs());
+            println!("{:?} has {}s remaining", query, remaining_ttl.as_secs());
             if remaining_ttl.as_secs() < 10 {
-                println!("Refreshing query: {:?}", query);
+                println!("Refreshing {:?}", query);
                 queries_to_refresh.push((*query).clone());
             }
         }
@@ -145,11 +145,11 @@ impl Querier {
 
             // Wait for the time bomb to trigger or for a response to be cached
             while let Some(response) = receiver.recv().await {
-                if let Some(resp) = response {
-                    self.cache.insert(query.clone(), resp.0, resp.1).await;
+                if let Some((qry,response,ttl)) = response {
+                    self.cache.insert(qry, response, ttl).await;
                 } else {
                     let cache_resp = self.cache.get(&query).await;
-                    println!("Querier received timeout, for query: {:?} with {:?}", query, cache_resp);
+                    println!("Querier received timeout, for {:?} with {:?}", query, cache_resp);
                     self.tracker.remove(&query);
                     return cache_resp;
                 }

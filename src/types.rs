@@ -220,3 +220,33 @@ pub struct ChannelMessage {
     pub ip: SocketAddr,
     pub bytes: Vec<u8>,
 }
+
+// write test to see if insert same query response twice duplicated by the cache or not.
+#[cfg(test)]
+mod tests {
+    use bazuka::*;
+    use super::*;
+
+    #[tokio::test]
+    async fn test_cache_insert_duplicate() {
+        let cache = SkmvCache::new(SkmvConfig {
+            idle_timeout: Some(40),
+            maximum_capacity: 200,
+            maximum_values_per_key: 2,
+            time_to_live: Some(120),
+        });
+        let query = Query {
+            qname: Name::new_unchecked("example.local"),
+            qtype: QueryType::PTR,
+        };
+        let response = Response {
+            inner: ResponseInner::PTR("example.local".to_string()),
+            ends_at: SystemTime::now(),
+        };
+
+        cache.insert(query.clone(), response.clone(),5).await;
+        cache.insert(query, response,10).await;
+        assert_eq!(cache.iter().await.count(), 1); // Should still be 1
+    }
+
+}
