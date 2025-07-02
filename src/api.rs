@@ -7,8 +7,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 // Import Name type
-use super::cache::Tracker;
 use super::cache::Cache;
+use super::cache::Tracker;
 use super::listener::Listener;
 use super::querier::Querier;
 use super::register::Registry;
@@ -155,7 +155,8 @@ impl HomeWeb {
             qname: Name::new_unchecked(&svc_type).into_owned(),
             qtype: QueryType::PTR,
         };
-        let responses = self.querier
+        let responses = self
+            .querier
             .query(query, duration, false, &self.listener)
             .await
             .iter()

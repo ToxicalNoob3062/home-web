@@ -30,6 +30,19 @@ pub struct Querier {
 }
 
 impl Querier {
+    fn should_refresh(remaining_secs: u64, lifetime_secs: u32) -> bool {
+        use rand::{Rng, rng};
+        let threshold_percent = rng().random_range(85..=95) as f64 / 100.0;
+        let threshold_secs = (lifetime_secs as f64 * threshold_percent).round() as u64;
+        print!(
+            "Remaining: {}, Threshold: {}",
+            remaining_secs, threshold_secs
+        );
+        remaining_secs <= threshold_secs
+    }
+}
+
+impl Querier {
     pub fn new(cache: Cache, tracker: Tracker, listener: Arc<Listener>) -> Arc<Self> {
         let querier = Arc::new(Querier { cache, tracker });
         let querier_clone = querier.clone();
@@ -48,13 +61,13 @@ impl Querier {
         println!("Refreshing cache...");
         let mut queries_to_refresh = Vec::new();
         let now = SystemTime::now();
-        for (query, response) in self.cache.iter().await {
+        for (query, response, ttl) in self.cache.iter().await {
             let remaining_ttl = response
                 .ends_at
                 .duration_since(now)
-                .unwrap_or(Duration::from_secs(0));
-            println!("{:?} has {}s remaining", query, remaining_ttl.as_secs());
-            if remaining_ttl.as_secs() < 10 {
+                .unwrap_or(Duration::from_secs(0))
+                .as_secs();
+            if Querier::should_refresh(remaining_ttl, ttl) {
                 println!("Refreshing {:?}", query);
                 queries_to_refresh.push((*query).clone());
             }
@@ -145,11 +158,14 @@ impl Querier {
 
             // Wait for the time bomb to trigger or for a response to be cached
             while let Some(response) = receiver.recv().await {
-                if let Some((qry,response,ttl)) = response {
+                if let Some((qry, response, ttl)) = response {
                     self.cache.insert(qry, response, ttl).await;
                 } else {
                     let cache_resp = self.cache.get(&query).await;
-                    println!("Querier received timeout, for {:?} with {:?}", query, cache_resp);
+                    println!(
+                        "Querier received timeout, for {:?} with {:?}",
+                        query, cache_resp
+                    );
                     self.tracker.remove(&query);
                     return cache_resp;
                 }

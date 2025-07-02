@@ -82,7 +82,10 @@ fn prepare_triplet_from_record<'a>(record: &ResourceRecord<'a>) -> Option<(Query
 
     match &record.rdata {
         RData::PTR(ptr) => Some((
-            Query { qname: name, qtype: QueryType::PTR },
+            Query {
+                qname: name,
+                qtype: QueryType::PTR,
+            },
             Response {
                 inner: ResponseInner::PTR(ptr.to_string()),
                 ends_at,
@@ -90,7 +93,10 @@ fn prepare_triplet_from_record<'a>(record: &ResourceRecord<'a>) -> Option<(Query
             ttl,
         )),
         RData::SRV(srv) => Some((
-            Query { qname: name, qtype: QueryType::SRV },
+            Query {
+                qname: name,
+                qtype: QueryType::SRV,
+            },
             Response {
                 inner: ResponseInner::SRV {
                     port: srv.port,
@@ -101,7 +107,10 @@ fn prepare_triplet_from_record<'a>(record: &ResourceRecord<'a>) -> Option<(Query
             ttl,
         )),
         RData::TXT(txt) => Some((
-            Query { qname: name, qtype: QueryType::TXT },
+            Query {
+                qname: name,
+                qtype: QueryType::TXT,
+            },
             Response {
                 inner: ResponseInner::TXT {
                     strings: txt
@@ -115,7 +124,10 @@ fn prepare_triplet_from_record<'a>(record: &ResourceRecord<'a>) -> Option<(Query
             ttl,
         )),
         RData::A(a) => Some((
-            Query { qname: name, qtype: QueryType::A },
+            Query {
+                qname: name,
+                qtype: QueryType::A,
+            },
             Response {
                 inner: ResponseInner::A {
                     address: a.address.into(),
@@ -125,7 +137,10 @@ fn prepare_triplet_from_record<'a>(record: &ResourceRecord<'a>) -> Option<(Query
             ttl,
         )),
         RData::AAAA(aaaa) => Some((
-            Query { qname: name, qtype: QueryType::AAAA },
+            Query {
+                qname: name,
+                qtype: QueryType::AAAA,
+            },
             Response {
                 inner: ResponseInner::AAAA {
                     address: aaaa.address.into(),

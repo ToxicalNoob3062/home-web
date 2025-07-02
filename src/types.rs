@@ -224,8 +224,8 @@ pub struct ChannelMessage {
 // write test to see if insert same query response twice duplicated by the cache or not.
 #[cfg(test)]
 mod tests {
-    use bazuka::*;
     use super::*;
+    use bazuka::*;
 
     #[tokio::test]
     async fn test_cache_insert_duplicate() {
@@ -244,9 +244,8 @@ mod tests {
             ends_at: SystemTime::now(),
         };
 
-        cache.insert(query.clone(), response.clone(),5).await;
-        cache.insert(query, response,10).await;
+        cache.insert(query.clone(), response.clone(), 5).await;
+        cache.insert(query, response, 10).await;
         assert_eq!(cache.iter().await.count(), 1); // Should still be 1
     }
-
 }

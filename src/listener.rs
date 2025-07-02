@@ -1,6 +1,6 @@
 use super::cache::Tracker;
 use super::responder::Responder;
-use super::types::{ChannelMessage, Response,Query};
+use super::types::{ChannelMessage, Query, Response};
 use simple_dns::{CLASS, Packet, PacketFlag, Question};
 use socket2::{Domain, Protocol, SockAddr, Socket, Type};
 use std::{
@@ -168,7 +168,7 @@ impl Listener {
             .filter_map(|r| super::prepare_triplet_from_record(&r))
             .collect::<Vec<_>>();
         for (query, response, ttl) in responses {
-            let _ = sender.send(Some((query,response, ttl))).await;
+            let _ = sender.send(Some((query, response, ttl))).await;
         }
     }
 
