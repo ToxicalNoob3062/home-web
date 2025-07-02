@@ -35,7 +35,7 @@ impl Querier {
         let threshold_percent = rng().random_range(85..=95) as f64 / 100.0;
         let threshold_secs = (lifetime_secs as f64 * threshold_percent).round() as u64;
         print!(
-            "Remaining: {}, Threshold: {}",
+            "@ Remaining: {}, Threshold: {} ",
             remaining_secs, threshold_secs
         );
         remaining_secs <= threshold_secs

@@ -177,27 +177,38 @@ impl HomeWeb {
         instance_name: String,
         duration: Duration,
     ) -> Option<Device> {
-        let (port, target) = self.resolve_srv(instance_name.clone(), duration).await?;
+        // Split duration: 20% SRV, 30% TXT, 25% A, 25% AAAA
+        let dur_srv = duration.mul_f32(0.20);
+        let dur_txt = duration.mul_f32(0.30);
+        let dur_a = duration.mul_f32(0.25);
+        let dur_aaaa = duration.mul_f32(0.25);
 
-        let txt = self.resolve_txt(instance_name.clone(), duration).await;
+        // Step 1: Resolve SRV
+        let (port, target) = self.resolve_srv(instance_name.clone(), dur_srv).await?;
 
+        // Step 2: Resolve TXT
+        let txt = self.resolve_txt(instance_name.clone(), dur_txt).await;
+
+        // Step 3: Resolve A
         let a_records = self
-            .resolve_a(target.clone(), duration)
+            .resolve_a(target.clone(), dur_a)
             .await?
             .into_iter()
             .map(std::net::IpAddr::V4)
             .collect::<Vec<_>>();
 
+        // Step 4: Resolve AAAA
         let aaaa_records = self
-            .resolve_aaaa(target.clone(), duration)
+            .resolve_aaaa(target.clone(), dur_aaaa)
             .await?
             .into_iter()
             .map(std::net::IpAddr::V6)
             .collect::<Vec<_>>();
 
-        //  print cache
+        // Debug: Print current cache
         println!("Current cache: {:#?}", self.cache);
 
+        // Build and return Device
         Some(Device {
             name: instance_name,
             port,
@@ -206,6 +217,7 @@ impl HomeWeb {
             addresses: [a_records, aaaa_records].concat(),
         })
     }
+
     pub fn register_device(&mut self, instance: Instance) -> Result<(), String> {
         self.register.register_device(instance);
         Ok(())
