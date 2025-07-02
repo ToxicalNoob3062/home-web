@@ -72,7 +72,6 @@ impl Listener {
 }
 
 impl Listener {
-    // Constructor for Listener
     pub fn new(tracker: Tracker, responder: Responder) -> Result<Arc<Self>, String> {
         let v4_socket = Self::get_v4_msocket().ok();
         let v6_socket = Self::get_v6_msocket().ok();
@@ -113,7 +112,6 @@ impl Listener {
             if v4_broken && v6_broken {
                 return Err("Both IPv4 and IPv6 sockets are broken".to_string());
             }
-
             tokio::select! {
                 result = async {
                     match &*self.v4_socket {

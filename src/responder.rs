@@ -196,6 +196,7 @@ impl Responder {
         prepared_answers: &mut Vec<ResourceRecord<'a>>,
         known_answers: &[ResourceRecord<'a>],
     ) {
+        let curr_len = prepared_answers.len();
         prepared_answers.retain(|r| {
             if let Some(triplet) = super::prepare_triplet_from_record(r) {
                 !known_answers.iter().any(|ka| {
@@ -211,5 +212,11 @@ impl Responder {
                 true
             }
         });
+        if curr_len != prepared_answers.len() {
+            println!(
+                "Suppressed {} known answers",
+                curr_len - prepared_answers.len()
+            );
+        }
     }
 }

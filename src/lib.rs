@@ -19,11 +19,10 @@ mod types;
 pub use api::HomeWeb;
 pub use types::Instance;
 
-#[macro_export]
 macro_rules! global {
     ($static_name:ident, $fn_name:ident, $type:ty, $init:expr) => {
         static $static_name: OnceLock<$type> = OnceLock::new();
-        pub fn $fn_name() -> &'static $type {
+        fn $fn_name() -> &'static $type {
             $static_name.get_or_init(|| $init)
         }
     };
