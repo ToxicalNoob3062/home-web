@@ -141,8 +141,8 @@ impl Querier {
                 })
                 .await
             {
-                eprintln!("Failed to send query: {}", e);
-                return vec![];
+                eprintln!("Failed to send query in ip4 socket: {}", e);
+                // return vec![];
             }
 
             if let Err(e) = listener
@@ -152,8 +152,8 @@ impl Querier {
                 })
                 .await
             {
-                eprintln!("Failed to send query: {}", e);
-                return vec![];
+                eprintln!("Failed to send query in ip6 socket: {}", e);
+                // return vec![];
             }
 
             // Wait for the time bomb to trigger or for a response to be cached

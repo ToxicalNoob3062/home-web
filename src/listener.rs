@@ -24,7 +24,6 @@ pub struct Listener {
 // here we will write socket helper functions
 impl Listener {
     fn set_common_options(msock: &Socket) -> Result<(), std::io::Error> {
-        msock.set_ttl(255)?;
         msock.set_reuse_address(true)?;
         msock.set_nonblocking(true)?;
         Ok(())
@@ -33,6 +32,7 @@ impl Listener {
     fn set_v4_multicast_options(msock: &Socket) -> Result<(), std::io::Error> {
         // Disable multicast loopback during production
         msock.set_multicast_loop_v4(false)?;
+        msock.set_ttl(255)?;
 
         let bind_addr: SocketAddrV4 = "0.0.0.0:5353".parse().unwrap();
         msock.bind(&SockAddr::from(bind_addr))?;
@@ -45,6 +45,8 @@ impl Listener {
     fn set_v6_multicast_options(msock: &Socket) -> Result<(), std::io::Error> {
         // Disable multicast loopback during production
         msock.set_multicast_loop_v6(false)?;
+        msock.set_unicast_hops_v6(255)?; // For unicast
+        msock.set_multicast_hops_v6(255)?; // For multicast
 
         let bind_addr: SocketAddrV6 = "[::]:5353".parse().unwrap();
         msock.bind(&SockAddr::from(bind_addr))?;
